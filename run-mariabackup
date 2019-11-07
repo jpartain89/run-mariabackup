@@ -36,10 +36,6 @@ USEROPTIONS="--user=${MYSQL_USER} \
     --host=${MYSQL_HOST} \
     --port=${MYSQL_PORT}"
 ARGS=""
-BASEBACKDIR="${BACKDIR}/base"
-INCRBACKDIR="${BACKDIR}/incr"
-START=$(date +"%m-%d-%Y")
-DATEDIR=$(date +"%F_%H-%M-%S")
 
 function die() {
     echo "${PROGRAM_NAME}: ${1}" >&2
@@ -71,6 +67,10 @@ EOF
     exit 1
 fi
 
+BASEBACKDIR="${BACKDIR}/base"
+INCRBACKDIR="${BACKDIR}/incr"
+START=$(date +"%m-%d-%Y")
+DATEDIR=$(date +"%F_%H-%M-%S")
 
 function checks() {
     if [[ ! -d "${BASEBACKDIR}" ]]; then
