@@ -142,7 +142,7 @@ function main() {
             ${ARGS} \
             --extra-lsndir=${TARGETDIR} \
             --incremental-basedir=${INCRBASEDIR} \
-            --stream=xbstream | gzip > "${TARGETDIR}/backup.stream.gz"
+            --stream=xbstream | gzip > ${TARGETDIR}/backup.stream.gz
     else
         echo "New full backup"
 
@@ -155,7 +155,7 @@ function main() {
             ${USEROPTIONS} \
             ${ARGS} \
             --extra-lsndir=${TARGETDIR} \
-            --stream=xbstream | gzip > "${TARGETDIR}/backup.stream.gz"
+            --stream=xbstream | gzip > ${TARGETDIR}/backup.stream.gz
     fi
 
     MINS=$(( FULLBACKUPCYCLE * (KEEP + 1 ) / 60 ))
