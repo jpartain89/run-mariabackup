@@ -106,7 +106,7 @@ function main() {
     LATEST=$(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -printf "%P\n" | sort -nr | head -1)
 
     # Stats current age of the existing directory
-    AGE=$(stat -c %m-%d-%Y "${BASEBACKDIR}/${LATEST}")
+    AGE=$(stat -c %Y "${BASEBACKDIR}/${LATEST}")
 
     # Create an incremental backup
     if [[ "${LATEST}" ]] && [[ $(( AGE + FULLBACKUPCYCLE + 5 )) -ge ${START} ]]; then
