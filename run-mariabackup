@@ -136,7 +136,7 @@ function main() {
         mkdir -p "${TARGETDIR}"
 
         # Create incremental Backup
-        ${BACKCMD} \
+        sudo ${BACKCMD} \
             --backup \
             ${USEROPTIONS} \
             ${ARGS} \
@@ -150,7 +150,7 @@ function main() {
         mkdir -p "${TARGETDIR}"
 
         # Create a new full backup
-        ${BACKCMD} \
+        sudo ${BACKCMD} \
             --backup \
             ${USEROPTIONS} \
             ${ARGS} \
