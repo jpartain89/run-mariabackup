@@ -69,7 +69,7 @@ fi
 
 BASEBACKDIR="${BACKDIR}/base"
 INCRBACKDIR="${BACKDIR}/incr"
-START=$(date +"%m-%d-%Y")
+START=$(date +"%Y")
 DATEDIR=$(date +"%F_%H-%M-%S")
 
 function checks() {
