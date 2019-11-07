@@ -31,7 +31,6 @@ FULLBACKUPCYCLE="604800"
 # Number of additional backups cycles a backup should be kept for.
 KEEP="3"
 
-# This block builds the USEROPTIONS variable depending upon the given variables in the config file
 USEROPTIONS="--user=${MYSQL_USER} \
     --password=${MYSQL_PASSWORD} \
     --host=${MYSQL_HOST} \
@@ -71,6 +70,7 @@ Exiting now.
 EOF
     exit 1
 fi
+
 
 function checks() {
     if [[ ! -d "${BASEBACKDIR}" ]]; then
