@@ -93,7 +93,7 @@ function checks() {
         exit 1
     fi
 
-    if [[ ! $(/usr/bin/mysql -s "${USEROPTIONS}" -e"quit" ) ]]; then
+    if [[ ! $(/usr/bin/mysql -s ${USEROPTIONS} -e"quit" ) ]]; then
         die "HALTED: Supplied mysql username or password appears to be incorrect (not copied here for security, see script)"
         exit 1
     fi
