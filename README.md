@@ -39,6 +39,8 @@ FLUSH PRIVILEGES;
 
 # Usage
 
+## Config File First!
+
 No matter how you use it, you need to setup the configuration file, conveniently provided here in the repo for you, with examples!
 
 The script will look in three places for it:
@@ -51,71 +53,96 @@ The script will look in three places for it:
 
 the last option being the one I personally prefer using, especially if it contains passwords, with proper flags set on the file.
 
-Also, the actual `mariabackup` commands in the script are run using `sudo`, so it can not only traverse to your home directory, but it'll bypass any other weirdness that can crop up.... 
+Also, the actual `mariabackup` commands in the script are run using `sudo`, so it can not only traverse to your home directory, but it'll bypass any other weirdness that can crop up. So, you're welcome to `chmod 600` your config file in your home directory.
+
+## Command Line
+
+Your first time running this? From within the git repo, run:
+
+```bash
+./run-mariabackup
+```
+
+And it'll auto-link/auto-install into `/usr/local/bin` like most of my bash scripts do. This way, the updating process is running `git pull` from the repo.
 
 ## Crontab
 
-    #MySQL Backup
-    30 2 * * * MYSQL_PASSWORD=YourPassword bash /data/script/run-mariabackup.sh > /data/script/logs/run-mariabackup.sh.out 2>&1
+```bash
+cat << EOF | sudo tee /etc/cron.d/run-mariabackup
+#MariaBackup
+
+30 2 * * * /usr/local/bin/run-mariabackup > /var/log/run-mariabackup.log 2>&1
+EOF
+```
+
+Thats a generic crontab that runs everyday at 2:30 am
 
 * * *
 
 ## Restore Example
 
-    tree /data/mysql_backup/
-    /data/mysql_backup/
-    ├── base
-    │   └── 2018-10-23_10-07-31
-    │       ├── backup.stream.gz
-    │       └── xtrabackup_checkpoints
-    └── incr
-        └── 2018-10-23_10-07-31
-            ├── 2018-10-23_10-08-49
-            │   ├── backup.stream.gz
-            │   └── xtrabackup_checkpoints
-            └── 2018-10-23_10-13-58
-                ├── backup.stream.gz
-                └── xtrabackup_checkpoints
+This is essentially what your backup directory will look like:
 
-    ```bash
+```bash
+tree /data/mysql_backup/
 
+/data/mysql_backup/
+├── base
+│   └── 2018-10-23_10-07-31
+│       ├── backup.stream.gz
+│       └── xtrabackup_checkpoints
+└── incr
+    └── 2018-10-23_10-07-31
+        ├── 2018-10-23_10-08-49
+        │   ├── backup.stream.gz
+        │   └── xtrabackup_checkpoints
+        └── 2018-10-23_10-13-58
+            ├── backup.stream.gz
+            └── xtrabackup_checkpoints
+```
+
+todo: I will be making a restore part of the script in the future.... just fyi
+
+To restore your backups:
+
+```bash
 # decompress
+cd /your/backup/directory
 
-  cd /data/mysql_backup/
-  for i in $(find . -name backup.stream.gz | grep '2018-10-23_10-07-31' | xargs dirname); \
-  do \
-  mkdir -p $i/backup; \
-  zcat $i/backup.stream.gz | mbstream -x -C $i/backup/; \
-  done
+# Replace the date after grep with the date you want to use
+while IFS= read -r line; do
+    mkdir -p "${line}/backup"
+    zcat "${line}/backup.stream.gz" | mbstream -x -C "${line}/backup/"
+done < <(find . -iname backup.stream.gz | grep '2018-10-23_10-07-31' | xargs dirname)
 
-# prepare
+# Prepare the files
 
-  mariabackup --prepare --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --apply-log-only
-  mariabackup --prepare --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-08-49/backup/
-  mariabackup --prepare --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-13-58/backup/
+mariabackup --prepare --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --apply-log-only
 
-# stop mairadb
+mariabackup --prepare --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-08-49/backup/
 
-  service mariadb stop
+mariabackup --prepare --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-13-58/backup/
+
+# stop mariadb
+
+sudo systemctl stop mariadb
 
 # empty datadir
 
-  mv /data/mysql/ /data/mysql_bak/
+mv /data/mysql/ /data/mysql_bak/
 
 # copy-back
 
-  mariabackup --copy-back --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --datadir /data/mysql/
+mariabackup --copy-back --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --datadir /data/mysql/
 
 # fix privileges
 
-  chown -R mysql:mysql /data/mysql/
+chown -R mysql:mysql /data/mysql/
 
 # start mariadb
 
-  service mariadb start
+service mariadb start
 
 # done!
-
-```
 
 ```
