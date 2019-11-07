@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+set -e
+
+# Create a backup user
+# GRANT RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO 'backup'@'localhost' identified by 'YourPassword';
+# FLUSH PRIVILEGES;
+#
+# Usage:
+# MYSQL_PASSWORD=YourPassword bash run-mariabackup
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROGRAM_NAME="run-mariabackup"
+VERSION="1.0.0"
+
+# Setting blank or default variables for world-usability
+# Definitely use a separate config file, please!
+# We'll be looking for the config file in three places:
+## /etc/run-mariabackup.conf
+## /etc/run-mariabackup/run-mariabackup.conf
+## ~/.config/run-mariabackup.conf
+# In that order
+
+MYSQL_USER=""
+MYSQL_PASSWORD=""
+MYSQL_HOST="localhost"
+MYSQL_PORT="3306"
+BACKCMD="mariabackup"
+BACKDIR="/backup/default"
+# Create a new full backup every X seconds
+FULLBACKUPCYCLE="604800"
+# Number of additional backups cycles a backup should be kept for.
+KEEP="3"
+
+# This block builds the USEROPTIONS variable depending upon the given variables in the config file
+USEROPTIONS="--user=${MYSQL_USER} \
+    --password=${MYSQL_PASSWORD} \
+    --host=${MYSQL_HOST} \
+    --port=${MYSQL_PORT}"
+ARGS=""
+BASEBACKDIR="${BACKDIR}/base"
+INCRBACKDIR="${BACKDIR}/incr"
+START=$(date +"%m-%d-%Y")
+DATEDIR=$(date +"%F_%H-%M-%S")
+
+function die() {
+    echo "${PROGRAM_NAME}: ${1}" >&2
+    exit "${2:-1}"
+}
+
+# This block tests for the existence of the needed configuration file
+if [ -f "/etc/${PROGRAM_NAME}.conf" ]; then
+    . "/etc/${PROGRAM_NAME}.conf"
+elif [ -f "/etc/${PROGRAM_NAME}/${PROGRAM_NAME}.conf" ]; then
+    . "/etc/${PROGRAM_NAME}/${PROGRAM_NAME}.conf"
+elif [ -f "${HOME}/.config/${PROGRAM_NAME}.conf" ]; then
+    . "${HOME}/.config/${PROGRAM_NAME}.conf"
+else
+    die << EOF
+We couldn't find the ${PROGRAM_NAME}.conf configuration file that we require to run!
+The file is looked for at:
+
+    /etc/${PROGRAM_NAME}.conf
+            - or -
+    /etc/${PROGRAM_NAME}/${PROGRAM_NAME}.conf
+            - or -
+    ~/.config/${PROGRAM_NAME}.conf
+
+This repo has a configuration file example that you can key off of for what you need to fill out.
+
+Exiting now.
+EOF
+    exit 1
+fi
+
+function checks() {
+    if [[ ! -d "${BASEBACKDIR}" ]]; then
+        mkdir -p "${BASEBACKDIR}"
+    fi
+
+    # Check base dir exists and is writable
+    if [[  ! -d "${BASEBACKDIR}" || ! -w "${BASEBACKDIR}" ]]; then
+        die "${BASEBACKDIR} does not exist or is not writable"
+        exit 1
+    fi
+
+    if [[  ! -d "${INCRBACKDIR}" ]]; then
+        mkdir -p "${INCRBACKDIR}"
+    fi
+
+    # check incr dir exists and is writable
+    if  [[ ! -d "${INCRBACKDIR}" || ! -w "${INCRBACKDIR}" ]]; then
+        die "${INCRBACKDIR} does not exist or is not writable"
+        exit 1
+    fi
+
+    if [[ ! $(/usr/bin/mysql -s "${USEROPTIONS}" -e"quit" ) ]]; then
+        die "HALTED: Supplied mysql username or password appears to be incorrect (not copied here for security, see script)"
+        exit 1
+    fi
+
+    echo "Check completed OK"
+}
+
+function main() {
+    # Find latest backup directory
+    LATEST=$(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -printf "%P\n" | sort -nr | head -1)
+
+    # Stats current age of the existing directory
+    AGE=$(stat -c %m-%d-%Y "${BASEBACKDIR}/${LATEST}")
+
+    # Create an incremental backup
+    if [[ "${LATEST}" ]] && [[ $(( AGE + FULLBACKUPCYCLE + 5 )) -ge ${START} ]]; then
+        echo "We are creating an incremintal backup"
+        # Check that incr sub directory exists
+        # try to create if not
+        if  [[ ! -d "${INCRBACKDIR}/${LATEST}" ]] ; then
+            mkdir -p "${INCRBACKDIR}/${LATEST}"
+        fi
+
+        # Check incr sub dir exists and is writable
+        if [[  ! -d "${INCRBACKDIR}/${LATEST}" || ! -w "${INCRBACKDIR}/${LATEST}" ]]; then
+            die "${INCRBACKDIR}/${LATEST} does not exist or is not writable"
+        fi
+
+        LATESTINCR=$(find "${INCRBACKDIR}/${LATEST}" -mindepth 1  -maxdepth 1 -type d | sort -nr | head -1)
+
+        if [ ! "$LATESTINCR" ]; then
+            # This is the first incremental backup
+            INCRBASEDIR="${BASEBACKDIR}/${LATEST}"
+        else
+            # This is a 2+ incremental backup
+            INCRBASEDIR="${LATESTINCR}"
+        fi
+
+        TARGETDIR="${INCRBACKDIR}/${LATEST}/${DATEDIR}"
+        mkdir -p "${TARGETDIR}"
+
+        # Create incremental Backup
+        ${BACKCMD} \
+            --backup \
+            "${USEROPTIONS}" \
+            "${ARGS}" \
+            --extra-lsndir="${TARGETDIR}" \
+            --incremental-basedir="${INCRBASEDIR}" \
+            --stream=xbstream | gzip > "${TARGETDIR}/backup.stream.gz"
+    else
+        echo "New full backup"
+
+        TARGETDIR="${BASEBACKDIR}/${DATEDIR}"
+        mkdir -p "${TARGETDIR}"
+
+        # Create a new full backup
+        ${BACKCMD} \
+            --backup \
+            "${USEROPTIONS}" \
+            "${ARGS}" \
+            --extra-lsndir="${TARGETDIR}" \
+            --stream=xbstream | gzip > "${TARGETDIR}/backup.stream.gz"
+    fi
+
+    MINS=$(( FULLBACKUPCYCLE * (KEEP + 1 ) / 60 ))
+    echo "Cleaning up old backups (older than ${MINS} minutes) and temporary files"
+
+    # Delete old backups
+    while IFS= read -r line; do
+        echo "deleting ${line}"
+        rm -rf "${BASEBACKDIR:?}/${line}"
+        rm -rf "${INCRBACKDIR:?}/${line}"
+    done < <(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -mmin +${MINS} -printf "%P\n")
+}
+
+checks
+main
