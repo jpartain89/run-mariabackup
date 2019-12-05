@@ -105,49 +105,51 @@ todo: I will be making a restore part of the script in the future.... just fyi
 
 To restore your backups:
 
+For the `${DATE}` info that we are going to be using as the base of our directory listings, that would be the date info for the original, full backup you performed that is inside the `/base/` directory.
+
 ```bash
 # decompress
 cd /your/backup/directory
 
-# Do a manual search for yourself first, to find the correct timestampted
-# directory to use here. Then, put it down as the DATE variable.
+# For the DATE info that we are going to be using as the base of our
+# directory listings, that would be the date info for the original, full
+# backup you performed that is inside the `/base/` directory.
 DATE="2018-10-23_10-07-31"
 
 # The DIR variable becomes the --target-dir below
 while IFS= read -r line; do
-    DIR="${line}/backup"
     mkdir -p "${line}/backup"
     zcat "${line}/backup.stream.gz" | mbstream -x -C "${line}/backup/"
 done < <(find . -iname backup.stream.gz | grep "${DATE}" | xargs dirname)
 
 # Prepare the files
+# The --target-dir is the original, base directory.
+mariabackup --prepare --target-dir ./base/${DATE}/backup/ --user mariabackup --password "YourPassword" --apply-log-only
 
-mariabackup --prepare --target-dir "${DIR}" --user backup --password "YourPassword" --apply-log-only
+# Now, we add on the incremental backup directories, running this command
+# however many times you have incremental backups saved.
+mariabackup --prepare --target-dir ./base/${DATE}/backup/ --user mariabackup --password "YourPassword" --apply-log-only --incremental-dir incr/${DATE}/2018-10-23_10-08-49/backup/
 
-mariabackup --prepare --target-dir "${DIR}" --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-08-49/backup/
+mariabackup --prepare --target-dir ./base/${DATE}/backup/ --user mariabackup --password "YourPassword" --apply-log-only --incremental-dir incr/${DATE}/2018-10-23_10-13-58/backup/
 
-mariabackup --prepare --target-dir "${DIR}" --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-13-58/backup/
-
-# stop mariadb
-
+# Next, we stop mariadb before we do the restoration
 sudo systemctl stop mariadb
 
-# empty datadir
-
+# Find where your datadir is saved at:
+# Debian default is /var/lib/mysql
+# You can look in your config files in /etc/mysql to locate this dir.
 mv /data/mysql/ /data/mysql_bak/
 
-# copy-back
+# Now, we will copy the restored files to their final working spot
+# MariaBackup lets you either copy the files or move the files
+mariabackup --copy-back --target-dir ./base/${DATE}/backup/ --user mariabackup --password "YourPassword" --datadir /data/mysql/
 
-mariabackup --copy-back --target-dir "${DIR}" --user backup --password "YourPassword" --datadir /data/mysql/
-
-# fix privileges
-
+# Lastly, once everything is in place, we want to make sure the
+# permissions are set correctly.
 chown -R mysql:mysql /data/mysql/
 
-# start mariadb
-
-service mariadb start
+# Lastly, start it back up again!
+sudo systemctl start mariadb.service
 
 # done!
-
 ```
