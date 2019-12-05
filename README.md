@@ -109,19 +109,24 @@ To restore your backups:
 # decompress
 cd /your/backup/directory
 
-# Replace the date after grep with the date you want to use
+# Do a manual search for yourself first, to find the correct timestampted
+# directory to use here. Then, put it down as the DATE variable.
+DATE="2018-10-23_10-07-31"
+
+# The DIR variable becomes the --target-dir below
 while IFS= read -r line; do
+    DIR="${line}/backup"
     mkdir -p "${line}/backup"
     zcat "${line}/backup.stream.gz" | mbstream -x -C "${line}/backup/"
-done < <(find . -iname backup.stream.gz | grep '2018-10-23_10-07-31' | xargs dirname)
+done < <(find . -iname backup.stream.gz | grep "${DATE}" | xargs dirname)
 
 # Prepare the files
 
-mariabackup --prepare --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --apply-log-only
+mariabackup --prepare --target-dir "${DIR}" --user backup --password "YourPassword" --apply-log-only
 
-mariabackup --prepare --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-08-49/backup/
+mariabackup --prepare --target-dir "${DIR}" --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-08-49/backup/
 
-mariabackup --prepare --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-13-58/backup/
+mariabackup --prepare --target-dir "${DIR}" --user backup --password "YourPassword" --apply-log-only --incremental-dir incr/2018-10-23_10-07-31/2018-10-23_10-13-58/backup/
 
 # stop mariadb
 
@@ -133,7 +138,7 @@ mv /data/mysql/ /data/mysql_bak/
 
 # copy-back
 
-mariabackup --copy-back --target-dir base/2018-10-23_10-07-31/backup/ --user backup --password "YourPassword" --datadir /data/mysql/
+mariabackup --copy-back --target-dir "${DIR}" --user backup --password "YourPassword" --datadir /data/mysql/
 
 # fix privileges
 
