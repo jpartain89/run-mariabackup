@@ -87,6 +87,44 @@ INCRBACKDIR="${BACKDIR}/incr"
 START=$(date +"%Y")
 DATEDIR=$(date +"%F_%H-%M-%S")
 
+# This tests for gnu-getopt, as thats needed to run
+if [ -f /usr/local/opt/gnu-getopt/bin/getopt ]; then
+    GETOPT="/usr/local/opt/gnu-getopt/bin/getopt"
+    if [ "$("$GETOPT" --test; echo $?)" != 4 ]; then
+        die "You seem to have the wrong version of gnu-getopt?
+        Please investigate and have the proper one installed."
+    fi
+else
+    die "Seems you're missing the required gnu-getopt program.
+    Please install using brew install gnu-getopt."
+fi
+
+function help() {
+cat << EOF
+${PROGRAM_NAME} [ -b | --backup ] or [ -r | --restore ] or [ -h | --help ]
+
+    -b | --backup  :  Running our backups, though I do not believe it can
+                      handle an original, full backup at this time. You
+                      might have to manually handle that, for now.
+    -r | --restore :  Running a restoration, it'll run through every backup
+                      location that currently exists in your backup location
+                      and then will copy-write it to your data directory location.
+
+    This is for us to run `mariabackup` automatically, programatically and incrementally. (since its rather difficult sans-script)
+
+    I've also added in the ability to restore your incremental backups, but it'll restore all of the incremental backups that are in your backup directory. If there is an incremental backup you don't want to utilize, move or remove the directory.
+
+    Make sure you setup your configuration file. We'll be looking:
+
+    /etc/${PROGRAM_NAME}.conf
+            - or -
+    /etc/${PROGRAM_NAME}/${PROGRAM_NAME}.conf
+            - or -
+    ~/.config/${PROGRAM_NAME}.conf
+
+EOF
+}
+
 function checks() {
     if [[ ! -d "${BASEBACKDIR}" ]]; then
         mkdir -p "${BASEBACKDIR}"
@@ -116,8 +154,9 @@ function checks() {
     echo "Check completed OK"
 }
 
-function main() {
-    # Find latest backup directory
+function backup() {
+    # This finds the main, base backup directory that should contain the
+    # `full` original backup we completed.
     LATEST=$(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -printf "%P\n" | sort -nr | head -1)
 
     # Stats current age of the existing directory
@@ -184,5 +223,91 @@ function main() {
     done < <(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -mmin +${MINS} -printf "%P\n")
 }
 
-checks
-main
+function restore() {
+    # This finds the main, base backup directory that should contain the `full`
+    # original backup we completed.
+    LATEST=$(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -printf "%P\n" | sort -nr | head -1)
+
+    INCREMENTAL_ORDER=$(find ${INCRBACKDIR}/${LATEST} -mindepth 1 -maxdepth 1 -type d -print0 | xargs -0 ls -d | sort -V)
+
+    echo "Decompressing the original, full backup first."
+    while IFS= read -r line; do
+        mkdir -p "${line}/backup"
+        zcat "${line}/backup.stream.gz" | mbstream -x -C "${line}/backup/"
+    done < <(find "${BACKDIR}" -iname backup.stream.gz | grep "${LATEST}" | xargs dirname)
+
+    echo "Next, we run the prepare steps on the original backup files and the remaining incremental backup files."
+
+    # This is building the base of the restore command, used for preparing
+    # the main, full backup directory first
+    BACKCMD_RESTORE="${BACKCMD} --prepare --target-dir ${BACKDIR}/base/${LATEST}/backup/ ${USEROPTIONS} --apply-log-only"
+    # This addition is for the subsequent incremental backups that we still
+    # have on the filesystem
+    BACKCMD_INCR_RESTORE="${BACKCMD_RESTORE} --incremental-dir "
+
+    # Run the first `restore` line for the main backup files
+    "${BACKCMD_RESTORE}"
+    # This for loop is to, in order, incrementally restore the backup files
+    while IFS= read -r lines; do
+        for incr in $lines; do
+            echo "Working on ${INCREMENTAL_ORDER} directory."
+            "${BACKCMD_RESTORE} --incremental-dir ${incr}/backup/"
+        done
+    done < <("${INCREMENTAL_ORDER}")
+
+    read -r "Do you want to proceed with moving the files to production?" confirm
+
+    if [[ "${confirm}" == "[ y|Y ]" ]]; then
+        echo "Now stopping mariadb from running to move the files in place."
+        sudo systemctl stop mariadb.service
+
+        echo "Next, moving the existing database files out of the way."
+        sudo mv "${DATADIR}" "${DATADIR}_bak"
+
+        echo "And, the copy-back step"
+        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/" "${USEROPTIONS}" --datadir "${DATADIR}"
+
+        echo "Fixing the permissions for the new data files"
+        sudo chown -R mysql:mysql "${DATADIR}"
+
+        echo "And starting mariadb service"
+        sudo systemctl start mariadb.service
+    fi
+}
+
+# We are using getopt for our CLI
+SHORT=brh
+LONG=backup,restore,help
+
+OPTS=$(${GETOPT} --options ${SHORT} --long ${LONG} --name "$0" -- "$@")
+
+if [ $# == 0 ]; then
+    help && exit 1
+fi
+
+if [ $? != 0 ] ; then
+    die "Failed to parse options...exiting." >&2
+fi
+
+eval set -- "${OPTS}"
+
+while true; do
+    case "$1" in
+        -b | --backup )
+            checks
+            backup
+            exit 0;;
+        -r | --restore )
+            checks
+            backup
+            exit 0;;
+        -h | --help )
+            help
+            exit 0;;
+        * )
+            help
+            exit 0;;
+    esac
+done
+
+exit 0
