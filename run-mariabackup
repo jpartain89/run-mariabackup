@@ -65,7 +65,7 @@ elif [ -f "/etc/${PROGRAM_NAME}/${PROGRAM_NAME}.conf" ]; then
 elif [ -f "${HOME}/.config/${PROGRAM_NAME}.conf" ]; then
     . "${HOME}/.config/${PROGRAM_NAME}.conf"
 else
-    die << EOF
+    cat << EOF
 We couldn't find the ${PROGRAM_NAME}.conf configuration file that we require to run!
 The file is looked for at:
 
@@ -100,13 +100,13 @@ if [[ "$(uname)" == "Darwin" ]]; then
     Please install using brew install gnu-getopt."
   fi
 else
-  if [[ "$(getopt --test; echo $?)" != 4 ]]; then 
+  if [[ "$(getopt --test; echo $?)" != 4 ]]; then
     die "You seem to have the wrong version of gnu-getopt...
       Please investigate how to fix this issue before re-attempting
       the use of this script."
   else
     GETOPT="$(command -v getopt)"
-  fi     
+  fi
 fi
 
 function help() {
@@ -157,7 +157,7 @@ function checks() {
     fi
 
     if [[ $(/usr/bin/mysql -s ${USEROPTIONS} -e"quit") ]]; then
-        die "HALTED: Supplied mysql username or password appears to be incorrect (not copied here for security, see script)"
+        die "HALTED: Supplied mysql username or password appears to be incorrect \(not copied here for security, see script\)"
         exit 1
     fi
 
@@ -223,7 +223,7 @@ function backup() {
     fi
 
     MINS=$(( FULLBACKUPCYCLE * (KEEP + 1 ) / 60 ))
-    echo "Cleaning up old backups (older than ${MINS} minutes) and temporary files"
+    echo "Cleaning up old backups \(older than ${MINS} minutes\) and temporary files"
 
     # Delete old backups
     while IFS= read -r line; do
@@ -275,7 +275,7 @@ function restore() {
         sudo mv "${DATADIR}" "${DATADIR}_bak"
 
         echo "And, the copy-back step"
-        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/" "${USEROPTIONS}" --datadir "${DATADIR}"
+        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/"${USEROPTIONS}" --datadir "${DATADIR}"
 
         echo "Fixing the permissions for the new data files"
         sudo chown -R mysql:mysql "${DATADIR}"
