@@ -110,8 +110,7 @@ else
 fi
 
 function help() {
-cat << EOF
-${PROGRAM_NAME} [ -b | --backup ] or [ -r | --restore ] or [ -h | --help ]
+echo "${PROGRAM_NAME} [ -b | --backup ] or [ -r | --restore ] or [ -h | --help ]
 
     -b | --backup  :  Running our backups, though I do not believe it can
                       handle an original, full backup at this time. You
@@ -122,7 +121,10 @@ ${PROGRAM_NAME} [ -b | --backup ] or [ -r | --restore ] or [ -h | --help ]
 
     This is for us to run `mariabackup` automatically, programatically and incrementally. (since its rather difficult sans-script)
 
-    I've also added in the ability to restore your incremental backups, but it'll restore all of the incremental backups that are in your backup directory. If there is an incremental backup you don't want to utilize, move or remove the directory.
+    I've also added in the ability to restore your incremental backups,
+    but it'll restore all of the incremental backups that are in your backup
+    directory. If there is an incremental backup you don't want to utilize,
+    move or remove the directory.
 
     Make sure you setup your configuration file. We'll be looking:
 
@@ -132,7 +134,7 @@ ${PROGRAM_NAME} [ -b | --backup ] or [ -r | --restore ] or [ -h | --help ]
             - or -
     ~/.config/${PROGRAM_NAME}.conf
 
-EOF
+"
 }
 
 function checks() {
@@ -275,7 +277,7 @@ function restore() {
         sudo mv "${DATADIR}" "${DATADIR}_bak"
 
         echo "And, the copy-back step"
-        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/"${USEROPTIONS}" --datadir "${DATADIR}"
+        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/${USEROPTIONS}" --datadir "${DATADIR}"
 
         echo "Fixing the permissions for the new data files"
         sudo chown -R mysql:mysql "${DATADIR}"
