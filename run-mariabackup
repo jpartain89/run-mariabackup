@@ -88,15 +88,25 @@ START=$(date +"%Y")
 DATEDIR=$(date +"%F_%H-%M-%S")
 
 # This tests for gnu-getopt, as thats needed to run
-if [ -f /usr/local/opt/gnu-getopt/bin/getopt ]; then
+if [[ "$(uname)" == "Darwin" ]]; then
+  if [ -f /usr/local/opt/gnu-getopt/bin/getopt ]; then
     GETOPT="/usr/local/opt/gnu-getopt/bin/getopt"
-    if [ "$("$GETOPT" --test; echo $?)" != 4 ]; then
+      if [ "$("$GETOPT" --test; echo $?)" != 4 ]; then
         die "You seem to have the wrong version of gnu-getopt?
         Please investigate and have the proper one installed."
-    fi
-else
+      fi
+  else
     die "Seems you're missing the required gnu-getopt program.
     Please install using brew install gnu-getopt."
+  fi
+else
+  if [[ "$(getopt --test; echo $?)" != 4 ]]; then 
+    die "You seem to have the wrong version of gnu-getopt...
+      Please investigate how to fix this issue before re-attempting
+      the use of this script."
+  else
+    GETOPT="$(command -v getopt)"
+  fi     
 fi
 
 function help() {
@@ -299,7 +309,7 @@ while true; do
             exit 0;;
         -r | --restore )
             checks
-            backup
+            restore
             exit 0;;
         -h | --help )
             help
