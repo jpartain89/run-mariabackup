@@ -119,7 +119,7 @@ echo "${PROGRAM_NAME} [ -b | --backup ] or [ -r | --restore ] or [ -h | --help ]
                       location that currently exists in your backup location
                       and then will copy-write it to your data directory location.
 
-    This is for us to run `mariabackup` automatically, programatically and incrementally. (since its rather difficult sans-script)
+    This is for us to run mariabackup automatically, programatically and incrementally. (since its rather difficult sans-script)
 
     I've also added in the ability to restore your incremental backups,
     but it'll restore all of the incremental backups that are in your backup
