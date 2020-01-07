@@ -275,7 +275,7 @@ function restore() {
         sudo mv "${DATADIR}" "${DATADIR}_bak"
 
         echo "And, the copy-back step"
-        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/"${USEROPTIONS}" --datadir "${DATADIR}"
+        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/${USEROPTIONS}" --datadir "${DATADIR}"
 
         echo "Fixing the permissions for the new data files"
         sudo chown -R mysql:mysql "${DATADIR}"
