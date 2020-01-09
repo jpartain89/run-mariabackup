@@ -57,8 +57,11 @@ command -v "$PROGRAM_NAME" 1>/dev/null 2>&1 || {
     )
 }
 
+function testing() {
 # This block tests for the existence of the needed configuration file
-if [ -f "/etc/${PROGRAM_NAME}.conf" ]; then
+if [ -f "${CONFIG_LOCATION}" ]; then
+    . "${CONFIG_LOCATION}"
+elif [ -f "/etc/${PROGRAM_NAME}.conf" ]; then
     . "/etc/${PROGRAM_NAME}.conf"
 elif [ -f "/etc/${PROGRAM_NAME}/${PROGRAM_NAME}.conf" ]; then
     . "/etc/${PROGRAM_NAME}/${PROGRAM_NAME}.conf"
@@ -86,7 +89,7 @@ BASEBACKDIR="${BACKDIR}/base"
 INCRBACKDIR="${BACKDIR}/incr"
 START=$(date +"%Y")
 DATEDIR=$(date +"%F_%H-%M-%S")
-
+}
 # This tests for gnu-getopt, as thats needed to run
 if [[ "$(uname)" == "Darwin" ]]; then
   if [ -f /usr/local/opt/gnu-getopt/bin/getopt ]; then
@@ -288,8 +291,8 @@ function restore() {
 }
 
 # We are using getopt for our CLI
-SHORT=brh
-LONG=backup,restore,help
+SHORT=brhc;
+LONG=backup,restore,help,config:
 
 OPTS=$(${GETOPT} --options ${SHORT} --long ${LONG} --name "$0" -- "$@")
 
@@ -305,18 +308,26 @@ eval set -- "${OPTS}"
 
 while true; do
     case "$1" in
+        -c | --config )
+            shift
+            CONFIG_LOCATION="$1"
+            shift;;
         -b | --backup )
+            testing
             checks
             backup
             exit 0;;
         -r | --restore )
+            testing
             checks
             restore
             exit 0;;
         -h | --help )
+            testing
             help
             exit 0;;
         * )
+            testing
             help
             exit 0;;
     esac
