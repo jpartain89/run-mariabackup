@@ -159,7 +159,7 @@ function checks() {
     fi
 
     if [[ $(/usr/bin/mysql -s ${USEROPTIONS} -e"quit") ]]; then
-        die "HALTED: Supplied mysql username or password appears to be incorrect \(not copied here for security, see script\)"
+        die "HALTED: Supplied mysql username or password appears to be incorrect (not copied here for security, see script)"
         exit 1
     fi
 
@@ -225,7 +225,7 @@ function backup() {
     fi
 
     MINS=$(( FULLBACKUPCYCLE * (KEEP + 1 ) / 60 ))
-    echo "Cleaning up old backups \(older than ${MINS} minutes\) and temporary files"
+    echo "Cleaning up old backups (older than ${MINS} minutes) and temporary files"
 
     # Delete old backups
     while IFS= read -r line; do
