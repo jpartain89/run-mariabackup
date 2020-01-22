@@ -122,12 +122,13 @@ echo "${PROGRAM_NAME} [ -b | --backup ] or [ -r | --restore ] or [ -h | --help ]
                       location that currently exists in your backup location
                       and then will copy-write it to your data directory location.
 
-    This is for us to run mariabackup automatically, programatically and incrementally. (since its rather difficult sans-script)
+    This is for us to run mariabackup automatically, programatically and incrementally. 
+    (since its rather difficult, with a ton of manual typing or copy-pasting without a script!)
 
-    I've also added in the ability to restore your incremental backups,
-    but it'll restore all of the incremental backups that are in your backup
-    directory. If there is an incremental backup you don't want to utilize,
-    move or remove the directory.
+    I've also added in the ability to restore your incremental backups, but it'll 
+    restore all of the incremental backups that are in your backup directory. If 
+    there is an incremental backup you don't want to utilize, move or remove 
+    the directory.
 
     Make sure you setup your configuration file. We'll be looking:
 
@@ -141,6 +142,9 @@ echo "${PROGRAM_NAME} [ -b | --backup ] or [ -r | --restore ] or [ -h | --help ]
 }
 
 function checks() {
+## This is for checking if various directories exist, and if not, create them
+## and/or throw up errors and exit the script if stuff doesn't work right
+
     if [[ ! -d "${BASEBACKDIR}" ]]; then
         mkdir -p "${BASEBACKDIR}"
     fi
@@ -171,7 +175,7 @@ function checks() {
 
 function backup() {
     # This finds the main, base backup directory that should contain the
-    # `full` original backup we completed.
+    # 'full' and original backup we completed.
     LATEST=$(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -printf "%P\n" | sort -nr | head -1)
 
     # Stats current age of the existing directory
@@ -180,21 +184,22 @@ function backup() {
     # Create an incremental backup
     if [[ "${LATEST}" ]] && [[ $(( AGE + FULLBACKUPCYCLE + 5 )) -ge ${START} ]]; then
         echo "We are creating an incremintal backup"
-        # Check that incr sub directory exists
+        # Check that `incr` sub directory exists
         # try to create if not
         if  [[ ! -d "${INCRBACKDIR}/${LATEST}" ]] ; then
             mkdir -p "${INCRBACKDIR}/${LATEST}"
         fi
 
-        # Check incr sub dir exists and is writable
+        # Check `incr` sub directory BOTH exists and is writable
         if [[  ! -d "${INCRBACKDIR}/${LATEST}" || ! -w "${INCRBACKDIR}/${LATEST}" ]]; then
             die "${INCRBACKDIR}/${LATEST} does not exist or is not writable"
         fi
 
-        LATESTINCR=$(find "${INCRBACKDIR}/${LATEST}" -mindepth 1  -maxdepth 1 -type d | sort -nr | head -1)
+        # Assigns the now-found `incr` sub directory
+        LATESTINCR=$(find "${INCRBACKDIR}/${LATEST}" -mindepth 1 -maxdepth 1 -type d | sort -nr | head -1)
 
         if [ ! "$LATESTINCR" ]; then
-            # This is the first incremental backup
+            # This is the first, MAIN backup
             INCRBASEDIR="${BASEBACKDIR}/${LATEST}"
         else
             # This is a 2+ incremental backup
@@ -243,8 +248,10 @@ function restore() {
     # original backup we completed.
     LATEST=$(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -printf "%P\n" | sort -nr | head -1)
 
+    # This finds and then sorts the backups
     INCREMENTAL_ORDER=$(find ${INCRBACKDIR}/${LATEST} -mindepth 1 -maxdepth 1 -type d -print0 | xargs -0 ls -d | sort -V)
 
+    # The backups are stored in a compressed state. This uncompresses them.
     echo "Decompressing the original, full backup first."
     while IFS= read -r line; do
         mkdir -p "${line}/backup"
