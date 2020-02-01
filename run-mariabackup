@@ -183,7 +183,7 @@ function backup() {
 
     # Create an incremental backup
     if [[ "${LATEST}" ]] && [[ $(( AGE + FULLBACKUPCYCLE + 5 )) -ge ${START} ]]; then
-        echo "We are creating an incremintal backup"
+        echo "We are creating an incremental backup"
         # Check that `incr` sub directory exists
         # try to create if not
         if  [[ ! -d "${INCRBACKDIR}/${LATEST}" ]] ; then
