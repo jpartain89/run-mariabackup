@@ -268,7 +268,7 @@ function restore() {
     BACKCMD_INCR_RESTORE="${BACKCMD_RESTORE} --incremental-dir "
 
     # Run the first `restore` line for the main backup files
-    "${BACKCMD_RESTORE}"
+    ${BACKCMD_RESTORE}
     # This for loop is to, in order, incrementally restore the backup files
     while IFS= read -r lines; do
         for incr in $lines; do
@@ -277,24 +277,33 @@ function restore() {
         done
     done < <("${INCREMENTAL_ORDER}")
 
-    read -r "Do you want to proceed with moving the files to production?" confirm
+    echo  "Do you want to proceed with moving the files to production?"
+    select yn in "Yes" "No"; do
 
-    if [[ "${confirm}" == "[ y|Y ]" ]]; then
-        echo "Now stopping mariadb from running to move the files in place."
-        sudo systemctl stop mariadb.service
+        case $yn in
+              Yes ) 
+                  echo "Now stopping mariadb from running to move the files in place.";
+                  sudo systemctl stop mariadb.service || true;
 
-        echo "Next, moving the existing database files out of the way."
-        sudo mv "${DATADIR}" "${DATADIR}_bak"
+                  if [[ -d "${DATADIR}" ]]; then
+                      echo "Next, moving the existing database files out of the way.";
+                      sudo mv "${DATADIR}" "${DATADIR}_bak";
+                  else
+                      mkdir -p "${DATADIR}"
+                  fi
 
-        echo "And, the copy-back step"
-        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/${USEROPTIONS}" --datadir "${DATADIR}"
+                  echo "And, the copy-back step";
+                  "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/" "${USEROPTIONS}" --datadir "${DATADIR}";
 
-        echo "Fixing the permissions for the new data files"
-        sudo chown -R mysql:mysql "${DATADIR}"
+                  echo "Fixing the permissions for the new data files";
+                  sudo chown -R mysql:mysql "${DATADIR}";
 
-        echo "And starting mariadb service"
-        sudo systemctl start mariadb.service
-    fi
+                  echo "And starting mariadb service";
+                  sudo systemctl start mariadb.service || true;;
+            No )
+                  echo "Not moving the files, then. Thanks!";;
+        esac
+    done
 }
 
 # We are using getopt for our CLI
