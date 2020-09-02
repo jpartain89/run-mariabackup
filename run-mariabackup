@@ -27,6 +27,7 @@ MYSQL_HOST="localhost"
 MYSQL_PORT="3306"
 BACKCMD="mariabackup"
 BACKDIR="/backup/default"
+DATADIR=""
 # Create a new full backup every X seconds
 FULLBACKUPCYCLE="604800"
 # Number of additional backups cycles a backup should be kept for.
