@@ -263,13 +263,13 @@ function restore() {
 
     # This is building the base of the restore command, used for preparing
     # the main, full backup directory first
-    BACKCMD_RESTORE="${BACKCMD} --prepare --target-dir ${BACKDIR}/base/${LATEST}/backup/ ${USEROPTIONS} --apply-log-only"
+    BACKCMD_RESTORE="${BACKCMD} --prepare --apply-log-only ${USEROPTIONS} --target-dir ${BACKDIR}/base/${LATEST}/backup/"
     # This addition is for the subsequent incremental backups that we still
     # have on the filesystem
     BACKCMD_INCR_RESTORE="${BACKCMD_RESTORE} --incremental-dir "
 
     # Run the first `restore` line for the main backup files
-    "${BACKCMD_RESTORE}"
+    ${BACKCMD_RESTORE}
     # This for loop is to, in order, incrementally restore the backup files
     while IFS= read -r lines; do
         for incr in $lines; do
@@ -278,9 +278,10 @@ function restore() {
         done
     done < <("${INCREMENTAL_ORDER}")
 
-    read -r "Do you want to proceed with moving the files to production?" confirm
+    read -r -p "Do you want to proceed with moving the files to production? " confirm
 
-    if [[ "${confirm}" == "[ y|Y ]" ]]; then
+    confirm=${confirm,,} #tolowercase
+    if [[ "$confirm" =~ ^(yes|y)$ ]]; then
         echo "Now stopping mariadb from running to move the files in place."
         sudo systemctl stop mariadb.service
 
@@ -288,7 +289,7 @@ function restore() {
         sudo mv "${DATADIR}" "${DATADIR}_bak"
 
         echo "And, the copy-back step"
-        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/${USEROPTIONS}" --datadir "${DATADIR}"
+        "${BACKCMD}" --copy-back --target-dir "${BACKDIR}/base/${LATEST}/backup/" "${USEROPTIONS}" --datadir "${DATADIR}"
 
         echo "Fixing the permissions for the new data files"
         sudo chown -R mysql:mysql "${DATADIR}"
