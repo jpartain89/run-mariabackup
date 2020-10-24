@@ -2,6 +2,8 @@
 # shellcheck disable=SC2086
 set -e
 
+exec 1> >(logger -s -t $(basename $0)) 2>&1
+
 # Create a backup user
 # GRANT RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO 'backup'@'localhost' identified by 'YourPassword';
 # FLUSH PRIVILEGES;
