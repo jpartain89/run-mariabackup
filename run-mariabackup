@@ -235,15 +235,14 @@ function backup() {
             --stream=xbstream | gzip > ${TARGETDIR}/backup.stream.gz
     fi
 
-    MINS=$(( FULLBACKUPCYCLE * (KEEP + 1 ) / 60 ))
-    echo "Cleaning up old backups (older than ${MINS} minutes) and temporary files"
+#    MINS=$(( FULLBACKUPCYCLE * (KEEP + 1 ) / 60 ))
+#    echo "Cleaning up old backups (older than ${MINS} minutes) and temporary files"
 
     # Delete old backups
-    while IFS= read -r line; do
-        echo "deleting ${line}"
-        rm -rf "${BASEBACKDIR:?}/${line}"
-        rm -rf "${INCRBACKDIR:?}/${line}"
-    done < <(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -mmin +${MINS} -printf "%P\n")
+#    while IFS= read -r line; do
+#        echo "deleting ${line}"
+#        rm -rf "${INCRBACKDIR:?}/${line}"
+#    done < <(find ${BASEBACKDIR} -mindepth 1 -maxdepth 1 -type d -mmin +${MINS} -printf "%P\n")
 }
 
 function restore() {
